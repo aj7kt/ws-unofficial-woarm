@@ -1659,7 +1659,11 @@ qt6_add_resources (wsjtx_RESOURCES_RCC
 # AX COM servers
 if (WIN32)
   include (QtAxMacros)
-  wrap_ax_server (GENAXSRCS ${AXSERVERSRCS})
+  # dumpcpp (seen with Qt 6.12, arm64) exits -1 part-way through writing the
+  # static meta object for OmniRig; -nometaobject generates a complete
+  # header and has Qt build the meta object at run time instead.
+  set (WSJT_DUMPCPP_OPTIONS -nometaobject CACHE STRING "Extra dumpcpp options for COM interface generation")
+  wrap_ax_server (GENAXSRCS ${AXSERVERSRCS} OPTIONS ${WSJT_DUMPCPP_OPTIONS})
 endif (WIN32)
 
 #
