@@ -151,6 +151,10 @@ if (APPLE OR WIN32)
   endif (WIN32)
 
 # --- 1) Discover msys-2.0.dll (dynamic, no hard-coding) ---
+# Only for JTSDK (x64) builds: msys-2.0.dll is MSYS2's own x86_64 POSIX
+# runtime, not part of a MinGW/CLANG* application, and must not be bundled
+# into e.g. an arm64 build made from a plain MSYS2 install.
+if (JTSDK_TOOLS_ROOT)
 find_file(MSYS_DLL
   NAMES msys-2.0.dll
   PATHS
@@ -159,10 +163,13 @@ find_file(MSYS_DLL
     $ENV{MSYS2_PATH}/usr/bin
   NO_DEFAULT_PATH
 )
+else ()
+  set (MSYS_DLL "")
+endif ()
 
 if (MSYS_DLL AND NOT MSYS_DLL STREQUAL "MSYS_DLL-NOTFOUND")
   message(STATUS "Found msys-2.0.dll at: ${MSYS_DLL}")
-else()
+elseif (JTSDK_TOOLS_ROOT)
   message(WARNING "msys-2.0.dll not found under JTSDK tools; MAP65 may not run without it")
   message(STATUS "JTSDK_TOOLS_ROOT is: ${JTSDK_TOOLS_ROOT}")
 endif()
