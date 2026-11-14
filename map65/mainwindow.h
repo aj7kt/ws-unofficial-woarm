@@ -1,5 +1,6 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
+#include "wsjtx_config.h"   // fortran_charlen_t (also needed by moc's compilation unit)
 #include <QtGui>
 #include <QtWidgets>
 #include <QPointer>
