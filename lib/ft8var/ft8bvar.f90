@@ -2326,7 +2326,10 @@ subroutine ft8bvar(newdat1,nQSOProgress,nfqso,nftx,napwid,lsubtract,npos,freqsub
         lspecial=.true.  !only in ft8var
 
 !protection against a false FT8Svar decode in Hound mode 
-        if(lhound .and. dfqso.lt.2.0) lqsomsgdcd=.true. !$OMP FLUSH (lqsomsgdcd)
+        if(lhound .and. dfqso.lt.2.0) then
+           lqsomsgdcd=.true.
+!$OMP FLUSH (lqsomsgdcd)
+        endif
      endif
      qual=1.0-(nharderrors+dmin)/60.0
      xsnr=0.001

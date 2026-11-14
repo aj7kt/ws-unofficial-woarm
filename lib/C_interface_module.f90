@@ -51,27 +51,12 @@ module C_interface_module
   !     include support for more character types.
   !
 
-  !     Fortran does not (yet) support unsigned types.
+  !     The C_unsigned* / C_uint*_t signed-integer aliases that used to be
+  !     here were removed: Fortran 2023 compilers with UNSIGNED support
+  !     (e.g. LLVM flang) export those names from ISO_C_Binding, which made
+  !     redeclaring them an error, and nothing in WS uses them.
   integer, parameter :: &
-       C_unsigned = C_int, &
-       C_unsigned_short = C_short, &
-       C_unsigned_long = C_long, &
-       C_unsigned_long_long = C_long_long, &
-       C_unsigned_char = C_signed_char, &
-       C_ssize_t = C_size_t, &
-       C_uint8_t = C_int8_t, &
-       C_uint16_t = C_int16_t, &
-       C_uint32_t = C_int32_t, &
-       C_uint64_t = C_int64_t, &
-       C_uint_least8_t = C_int_least8_t, &
-       C_uint_least16_t = C_int_least16_t, &
-       C_uint_least32_t = C_int_least32_t, &
-       C_uint_least64_t = C_int_least64_t, &
-       C_uint_fast8_t = C_int_fast8_t, &
-       C_uint_fast16_t = C_int_fast16_t, &
-       C_uint_fast32_t = C_int_fast32_t, &
-       C_uint_fast64_t = C_int_fast64_t, &
-       C_uintmax_t = C_intmax_t
+       C_ssize_t = C_size_t
   !     Note: ptrdiff_t cannot be reliably defined from other types.
   !     When practical, it is larger than a pointer because it benefits
   !     from the full unsigned range in both positive and negative directions.
@@ -80,11 +65,7 @@ module C_interface_module
   integer, parameter :: &
        C_short_int = C_short, &
        C_long_int = C_long, &
-       C_long_long_int = C_long_long, &
-       C_unsigned_int = C_unsigned, &
-       C_unsigned_short_int = C_short, &
-       C_unsigned_long_int = C_long, &
-       C_unsigned_long_long_int = C_long_long
+       C_long_long_int = C_long_long
 
   interface C_F_string
      module procedure C_F_string_ptr

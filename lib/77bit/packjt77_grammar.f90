@@ -56,8 +56,11 @@ module packjt77_grammar
   end type pack77_type12_call_source
 
   type pack77_type12_source
-     type(pack77_type12_call_source) :: call_1
-     type(pack77_type12_call_source) :: call_2
+     ! Explicit defaults so pack77_type12_source() may omit these: the
+     ! standard (and flang) require it; gfortran inferred it from the
+     ! component type's own defaults.
+     type(pack77_type12_call_source) :: call_1=pack77_type12_call_source()
+     type(pack77_type12_call_source) :: call_2=pack77_type12_call_source()
      integer :: ir=0
      integer :: igrid4=0
      integer :: i3=1

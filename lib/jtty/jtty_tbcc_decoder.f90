@@ -30,7 +30,8 @@ module jtty_tbcc_decoder
     real(real64) :: clean_metrics(JTTY_TBCC_MAX_HYPOTHESES) = &
          -huge(0.0_real64)
     logical :: crc_valid(JTTY_TBCC_MAX_HYPOTHESES) = .false.
-    type(jtty_tbcc_decode_result) :: result
+    ! explicit default: needed for jtty_tbcc_rung_result() under flang
+    type(jtty_tbcc_decode_result) :: result = jtty_tbcc_decode_result()
     logical :: accepted = .false.
   end type jtty_tbcc_rung_result
 
