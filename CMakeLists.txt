@@ -1009,6 +1009,7 @@ endif (APPLE)
 set_source_files_properties (${WSJTX_ICON_FILE} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 
 # suppress intransigent compiler diagnostics
+
 # (gfortran-only options; flang already keeps locals on the stack, which is
 # what -frecursive asks for)
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
@@ -1218,8 +1219,21 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "LLVMFlang")
   # LLVM flang (e.g. MSYS2 CLANGARM64): no gfortran-only options. flang
   # already appends a single trailing underscore and uses size_t hidden
   # character lengths, matching what the C/C++ side expects.
-  set (CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} -O2")
+  # -fsave-main-program: keep main program variables in static memory, as
+  # gfortran does; the simulators declare several MB of arrays there and
+  # overflow the default stack otherwise.
+  set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fsave-main-program")
+  # (No -fsafe-trampoline: flang 23 cannot compile it for this code base;
+  # lib/decoder.f90 was changed so its callbacks need no trampolines.)
+  # (Release keeps CMake's default -O3, as with gfortran.)
   set (CMAKE_Fortran_FLAGS_DEBUG   "${CMAKE_Fortran_FLAGS_DEBUG} -g -O0")
+  if (WIN32)
+    # flang keeps local arrays and array temporaries on the stack where
+    # gfortran made large ones static, and the PE default reserve is only
+    # 1 MB. Give every executable 16 MB (as jt9/ws already had); targets
+    # that set their own --stack later on the link line still win.
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--stack,0x1000000")
+  endif ()
   # C/C++ code that initialises the Fortran runtime itself (qmap) needs to
   # know which runtime it is talking to.
   add_compile_definitions ($<$<COMPILE_LANGUAGE:C,CXX>:WSJT_FORTRAN_RUNTIME_FLANG>)
@@ -1719,6 +1733,11 @@ if (${OPENMP_FOUND} OR APPLE)
   endif () 
   
   target_link_libraries (jt9 wsjt_fort_omp wsjt_cxx fort_qt)
+  if (WIN32 AND CMAKE_Fortran_COMPILER_ID STREQUAL "LLVMFlang")
+    # libomp worker thread stack size, see lib/omp_stacksize.cpp
+    target_sources (jt9 PRIVATE lib/omp_stacksize.cpp)
+    target_link_libraries (jt9 OpenMP::OpenMP_CXX)
+  endif ()
 else (${OPENMP_FOUND} OR APPLE)
   target_link_libraries (jt9 wsjt_fort wsjt_cxx fort_qt)
   if (UNIX AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -1779,6 +1798,10 @@ if ((NOT ${OPENMP_FOUND}) OR APPLE)
   target_link_libraries (wsjtx wsjt_fort)
 else ()
   target_link_libraries (wsjtx wsjt_fort_omp OpenMP::OpenMP_CXX)
+  if (WIN32 AND CMAKE_Fortran_COMPILER_ID STREQUAL "LLVMFlang")
+    # libomp worker thread stack size, see lib/omp_stacksize.cpp
+    target_sources (wsjtx PRIVATE lib/omp_stacksize.cpp)
+  endif ()
   set_target_properties (wsjtx PROPERTIES
     Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules_omp
     )
