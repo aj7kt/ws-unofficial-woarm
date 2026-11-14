@@ -1024,24 +1024,8 @@ endif ()
 set_property (SOURCE ${all_C_and_CXXSRCS} APPEND_STRING PROPERTY COMPILE_FLAGS " -include wsjtx_config.h")
 set_property (SOURCE ${all_C_and_CXXSRCS} APPEND PROPERTY OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/wsjtx_config.h)
 
-if (WIN32)
-  # generate the OmniRig COM interface source
-  find_program (DUMPCPP dumpcpp)
-  if (DUMPCPP-NOTFOUND)
-    message (FATAL_ERROR "dumpcpp tool not found")
-  endif (DUMPCPP-NOTFOUND)
-  execute_process (
-    COMMAND ${DUMPCPP} -getfile {4FE359C5-A58F-459D-BE95-CA559FB4F270}
-    OUTPUT_VARIABLE AXSERVER
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-  string (STRIP "${AXSERVER}" AXSERVER)
-  if (NOT AXSERVER)
-    message (FATAL_ERROR "You need to install OmniRig on this computer")
-  endif (NOT AXSERVER)
-  string (REPLACE "\"" "" AXSERVER ${AXSERVER})
-  file (TO_CMAKE_PATH ${AXSERVER} AXSERVERSRCS)
-endif ()
+# The OmniRig COM interface is no longer generated with dumpcpp from an
+# installed OmniRig; see Transceiver/OmniRig.h (written from OmniRig.ridl).
 
 
 #
@@ -1147,7 +1131,7 @@ find_package (Qt6 COMPONENTS Widgets SerialPort Multimedia PrintSupport Sql Ling
 
 if (WIN32)
   add_definitions (-DQT_NEEDS_QTMAIN)
-  find_package (Qt6 REQUIRED COMPONENTS AxContainer AxServer)
+  find_package (Qt6 REQUIRED COMPONENTS AxContainer)
 endif (WIN32)
 
 #
@@ -1236,6 +1220,9 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "LLVMFlang")
   # character lengths, matching what the C/C++ side expects.
   set (CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} -O2")
   set (CMAKE_Fortran_FLAGS_DEBUG   "${CMAKE_Fortran_FLAGS_DEBUG} -g -O0")
+  # C/C++ code that initialises the Fortran runtime itself (qmap) needs to
+  # know which runtime it is talking to.
+  add_compile_definitions ($<$<COMPILE_LANGUAGE:C,CXX>:WSJT_FORTRAN_RUNTIME_FLANG>)
 
 elseif (Fortran_COMPILER_NAME MATCHES "ifort.*")
   # ifort (untested)
@@ -1656,11 +1643,6 @@ qt6_add_resources (wsjtx_RESOURCES_RCC
   contrib/QDarkStyleSheet/qdarkstyle/style.qrc
   )
 
-# AX COM servers
-if (WIN32)
-  include (QtAxMacros)
-  wrap_ax_server (GENAXSRCS ${AXSERVERSRCS})
-endif (WIN32)
 
 #
 # targets dependent on Qt
@@ -1672,12 +1654,15 @@ target_include_directories (qcp PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_
 target_link_libraries (qcp Qt6::Widgets Qt6::PrintSupport)
 
 # build a library of package Qt functionality
-add_library (wsjt_qt STATIC ${wsjt_qt_CXXSRCS} ${wsjt_qt_GENUISRCS} ${GENAXSRCS})
+add_library (wsjt_qt STATIC ${wsjt_qt_CXXSRCS} ${wsjt_qt_GENUISRCS})
 # set wsjtx_udp exports to static variants
 target_compile_definitions (wsjt_qt PUBLIC UDP_STATIC_DEFINE)
 target_link_libraries (wsjt_qt Hamlib::Hamlib Boost::log qcp Qt6::Widgets Qt6::Network Qt6::Sql Qt6::WebSockets Qt6::SerialPort)
 if (WIN32)
-  target_link_libraries(wsjt_qt Qt6::AxContainer Qt6::AxServer)
+  # ws only uses COM objects (OmniRig); it does not serve any, so
+  # AxServer (which expects the application to define qax_instantiate())
+  # is not needed.
+  target_link_libraries(wsjt_qt Qt6::AxContainer)
 #  target_link_libraries (wsjt_qt QAxContainer QAxBase)
 endif (WIN32)
 

@@ -27,8 +27,16 @@ extern "C" {
   // Fortran procedures we need
   void four2a_ (_Complex float *, int * nfft, int * ndim, int * isign, int * iform, int len);
 
+#if defined(WSJT_FORTRAN_RUNTIME_FLANG)
+  // LLVM flang runtime entry point (flang/Runtime/main.h); what a
+  // flang-compiled Fortran main program calls first.
+  struct EnvironmentDefaultList;
+  void _FortranAProgramStart(int argc, const char *argv[], const char *envp[],
+                             const struct EnvironmentDefaultList *);
+#else
   void _gfortran_set_args(int argc, char *argv[]);
   void _gfortran_set_convert(int conv);
+#endif
   void ftninit_(void);
   void fftbig_(float dd[], int* nfft);
   void jpl_setup_(char* fname, fortran_charlen_t len);
@@ -363,8 +371,14 @@ int main(int argc, char *argv[])
 
 // Initialize libgfortran (cwd is the instance work dir now, so ftninit's
 // relative opens land there):
+#if defined(WSJT_FORTRAN_RUNTIME_FLANG)
+  // native byte order is flang's default, so no set_convert equivalent
+  _FortranAProgramStart(argc, const_cast<const char **>(argv),
+                        const_cast<const char **>(_environ), nullptr);
+#else
   _gfortran_set_args(argc, argv);
   _gfortran_set_convert(0);
+#endif
   ftninit_();
 
   // Register the JPL ephemeris file for the astro Doppler chain: astro.f90
