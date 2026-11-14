@@ -4,9 +4,9 @@ find_package (Qt6Test 6 REQUIRED)
 # Compiler options
 #
 set (CMAKE_CXX_STANDARD 17)
-add_compile_options ("$<$<COMPILE_LANGUAGE:Fortran>:-Wall;-Wno-conversion;-fno-second-underscore;-fno-f2c>")
-add_compile_options ("$<$<AND:$<COMPILE_LANGUAGE:Fortran>,$<CONFIG:Debug>>:-fbounds-check>")
-add_compile_options ("$<$<AND:$<COMPILE_LANGUAGE:Fortran>,$<NOT:$<CONFIG:Debug>>>:-funroll-all-loops>")
+add_compile_options ("$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Wall;-Wno-conversion;-fno-second-underscore;-fno-f2c>")
+add_compile_options ("$<$<AND:$<COMPILE_LANG_AND_ID:Fortran,GNU>,$<CONFIG:Debug>>:-fbounds-check>")
+add_compile_options ("$<$<AND:$<COMPILE_LANG_AND_ID:Fortran,GNU>,$<NOT:$<CONFIG:Debug>>>:-funroll-all-loops>")
 add_compile_options ("$<$<AND:$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>,$<OR:$<C_COMPILER_ID:GNU>,$<C_COMPILER_ID:Clang>,$<C_COMPILER_ID:AppleClang>>>:-Wall;-Wextra>")
 add_compile_options ("$<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:GNU>>:-Wno-pragmas>")
 add_compile_options ("$<$<AND:$<OR:$<C_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:GNU>>,$<NOT:$<CONFIG:Debug>>>:-fdata-sections;-ffunction-sections>")

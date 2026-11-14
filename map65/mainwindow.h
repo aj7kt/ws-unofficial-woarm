@@ -536,16 +536,16 @@ extern "C" {
 
   void gen65_(char* msg, int* mode65, double* samfac,
               int* nsendingsh, char* msgsent, short iwave[], int* nwave,
-              int len1, int len2);
+              fortran_charlen_t len1, fortran_charlen_t len2);
 
   void gen_q65_wave_(char* msg, int* ntxFreq, int* mode64,
               char* msgsent, short iwave[], int* nwave,
-              int len1, int len2);
+              fortran_charlen_t len1, fortran_charlen_t len2);
 
   int ptt_(int* nport, int* itx, int* iptt);
 
   void astrosub00_ (int* nyear, int* month, int* nday, double* uth, int* nfreq,
-                    const char* mygrid, int* ndop00, int len1);
+                    const char* mygrid, int* ndop00, fortran_charlen_t len1);
   }
 
 #endif // MAINWINDOW_H

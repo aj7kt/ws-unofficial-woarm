@@ -142,12 +142,14 @@ endif ()
 #  )
 
 add_definitions (-DBIGSYM=1)
-set_source_files_properties (sec_midn.f90 PROPERTIES COMPILE_FLAGS -fno-second-underscore)
-if(Qt6_FOUND)
-  set_source_files_properties(m65a.f90 PROPERTIES COMPILE_FLAGS "-Wno-aliasing -fallow-argument-mismatch")
-else()  
-  set_source_files_properties(m65a.f90 PROPERTIES COMPILE_FLAGS "-Wno-aliasing")
-endif()
+if (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+  set_source_files_properties (sec_midn.f90 PROPERTIES COMPILE_FLAGS -fno-second-underscore)
+  if(Qt6_FOUND)
+    set_source_files_properties(m65a.f90 PROPERTIES COMPILE_FLAGS "-Wno-aliasing -fallow-argument-mismatch")
+  else()
+    set_source_files_properties(m65a.f90 PROPERTIES COMPILE_FLAGS "-Wno-aliasing")
+  endif()
+endif ()
 
 set (libm65_C_and_CXXSRCS
   ${libm65_CSRCS}
@@ -163,7 +165,7 @@ set_property (SOURCE ${libm65_C_and_CXXSRCS} APPEND PROPERTY OBJECT_DEPENDS ${CM
 add_library (m65impl STATIC ${libm65_FSRCS} ${libm65_CSRCS} ${libm65_CXXSRCS})
 
 target_compile_options(m65impl PRIVATE
-    $<$<COMPILE_LANGUAGE:Fortran>:
+    $<$<COMPILE_LANG_AND_ID:Fortran,GNU>:
     #    -fcheck=all
     #    -frecursive
         -fbacktrace

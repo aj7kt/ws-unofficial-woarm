@@ -56,10 +56,12 @@ set (PROJECT_DESCRIPTION "WS: Weak Signal Digital Modes Suite")
 set (CMAKE_PROJECT_DESCRIPTION ${PROJECT_DESCRIPTION})
 set (CMAKE_AUTOUIC ON)
 
-if(MINGW) # added for Qt6 compatibility
+# added for Qt6 compatibility; only needed by the GNU assembler (LLVM switches
+# to bigobj COFF automatically, and flang-linked executables reject -Wa).
+if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wa,-mbig-obj>)
     add_link_options(-Wa,-mbig-obj)
-endif()   
+endif()
 
 
 #
@@ -391,11 +393,13 @@ set (wsjt_CXXSRCS
   ${wsjt_fox_CXXSRCS}
   )
 # deal with a GCC v6 UB error message
-set_source_files_properties (
-  lib/crc10.cpp
-  lib/crc13.cpp
-  lib/crc14.cpp
-  PROPERTIES COMPILE_FLAGS -fpermissive)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set_source_files_properties (
+    lib/crc10.cpp
+    lib/crc13.cpp
+    lib/crc14.cpp
+    PROPERTIES COMPILE_FLAGS -fpermissive)
+endif ()
 
 if (WIN32)
   set (wsjt_CXXSRCS
@@ -1005,8 +1009,12 @@ endif (APPLE)
 set_source_files_properties (${WSJTX_ICON_FILE} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 
 # suppress intransigent compiler diagnostics
-set_source_files_properties (lib/decoder.f90 PROPERTIES COMPILE_FLAGS "-Wno-unused-dummy-argument -frecursive")
-set_source_files_properties (lib/filbig.f90 PROPERTIES COMPILE_FLAGS "-Wno-aliasing -frecursive")
+# (gfortran-only options; flang already keeps locals on the stack, which is
+# what -frecursive asks for)
+if (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+  set_source_files_properties (lib/decoder.f90 PROPERTIES COMPILE_FLAGS "-Wno-unused-dummy-argument -frecursive")
+  set_source_files_properties (lib/filbig.f90 PROPERTIES COMPILE_FLAGS "-Wno-aliasing -frecursive")
+endif ()
 
 ## disable Qt trace and warning messages from release configurations
 #set_property (DIRECTORY APPEND PROPERTY
@@ -1184,9 +1192,8 @@ if (NOT APPLE)
   set (CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -fdata-sections -ffunction-sections")
 endif (NOT APPLE)
 
-if (WIN32)
-  set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -std=gnu++17")
-endif (WIN32)
+# (removed: WIN32 added -std=c++17 -std=gnu++17 to CMAKE_C_FLAGS; GCC only
+# warns about C++ dialects on C sources, clang rejects them outright.)
 
 if (APPLE AND ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -stdlib=libc++")
@@ -1223,6 +1230,13 @@ if (Fortran_COMPILER_NAME MATCHES "gfortran.*")
   # run in nonstop mode and do not trap
   #set (CMAKE_Fortran_FLAGS_DEBUG   "${CMAKE_Fortran_FLAGS_DEBUG} ${CMAKE_Fortran_FLAGS_DEBUG}  -ffpe-trap=invalid,zero,overflow")
   
+elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "LLVMFlang")
+  # LLVM flang (e.g. MSYS2 CLANGARM64): no gfortran-only options. flang
+  # already appends a single trailing underscore and uses size_t hidden
+  # character lengths, matching what the C/C++ side expects.
+  set (CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} -O2")
+  set (CMAKE_Fortran_FLAGS_DEBUG   "${CMAKE_Fortran_FLAGS_DEBUG} -g -O0")
+
 elseif (Fortran_COMPILER_NAME MATCHES "ifort.*")
   # ifort (untested)
   set (CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} -f77rtl ${General_FFLAGS}")
@@ -1374,11 +1388,10 @@ if (${OPENMP_FOUND} OR APPLE)
     target_link_options(wsjt_fort_omp PRIVATE -Wl,-z,noexecstack)
   endif()
   
-  if (OpenMP_C_FLAGS AND NOT APPLE)
-    set_target_properties (wsjt_fort_omp
-      PROPERTIES
-      COMPILE_FLAGS "${OpenMP_C_FLAGS}"
-      )
+  if (NOT APPLE)
+    # Use the Fortran OpenMP flags for these Fortran sources (the C flags
+    # are e.g. -fopenmp=libomp for clang, which flang does not take).
+    target_link_libraries (wsjt_fort_omp OpenMP::OpenMP_Fortran)
   endif ()
   set_target_properties (wsjt_fort_omp
     PROPERTIES
@@ -1703,22 +1716,16 @@ if (${OPENMP_FOUND} OR APPLE)
       $<$<COMPILE_LANGUAGE:Fortran>:-fopenmp>   # assumes GNU style Fortran compiler
       )
   else (APPLE)
-    if (OpenMP_C_FLAGS)
-      set_target_properties (jt9
-        PROPERTIES
-        COMPILE_FLAGS "${OpenMP_C_FLAGS}"
-        LINK_FLAGS "${OpenMP_C_FLAGS}"
-        )
-    endif ()
+    target_link_libraries (jt9 OpenMP::OpenMP_Fortran)
     set_target_properties (jt9
       PROPERTIES
       Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules_omp
       )
   endif (APPLE)
   if (WIN32)
-    set_target_properties (jt9 PROPERTIES
-      LINK_FLAGS -Wl,--stack,16777216
-      )
+    # target_link_options appends; setting LINK_FLAGS here used to discard
+    # the OpenMP link flags.
+    target_link_options (jt9 PRIVATE -Wl,--stack,16777216)
   endif ()
  
   # Linux-specific hardening
@@ -1786,20 +1793,12 @@ target_include_directories (wsjtx PRIVATE ${FFTW3_INCLUDE_DIRS})
 if ((NOT ${OPENMP_FOUND}) OR APPLE)
   target_link_libraries (wsjtx wsjt_fort)
 else ()
-  target_link_libraries (wsjtx wsjt_fort_omp)
-  if (OpenMP_C_FLAGS)
-    set_target_properties (wsjtx PROPERTIES
-      COMPILE_FLAGS "${OpenMP_C_FLAGS}"
-      LINK_FLAGS "${OpenMP_C_FLAGS}"
-      )
-  endif ()
+  target_link_libraries (wsjtx wsjt_fort_omp OpenMP::OpenMP_CXX)
   set_target_properties (wsjtx PROPERTIES
     Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules_omp
     )
   if (WIN32)
-    set_target_properties (wsjtx PROPERTIES
-      LINK_FLAGS -Wl,--stack,0x1000000,--heap,0x20000000
-      )
+    target_link_options (wsjtx PRIVATE -Wl,--stack,0x1000000,--heap,0x20000000)
   endif ()
 endif ()
 target_link_libraries (wsjtx Qt6::SerialPort wsjt_cxx wsjt_qt wsjt_qtmm ${FFTW3_LIBRARIES} ${LIBM_LIBRARIES})

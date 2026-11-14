@@ -282,7 +282,7 @@ extern "C" {
                 int* nzap, float* slimit, uchar lstrong[]);
 
   void astrosub00_ (int* nyear, int* month, int* nday, double* uth, int* nfreq,
-                    const char* mygrid, int* ndop00, int len1);
+                    const char* mygrid, int* ndop00, fortran_charlen_t len1);
 
   void q65c_();
 
@@ -292,9 +292,9 @@ extern "C" {
 
   void save_qm_(const char* fname, const char* prog_id, const char* mycall, const char* mygrid,
                 float d4[], int* ntx30a, int* ntx30b, double* fcenter, int* nutc,
-                int* dop00, int* dop58, int len1, int len2, int len3, int len4);
+                int* dop00, int* dop58, fortran_charlen_t len1, fortran_charlen_t len2, fortran_charlen_t len3, fortran_charlen_t len4);
 
-  void read_qm_(const char* fname, int* iret, int len);
+  void read_qm_(const char* fname, int* iret, fortran_charlen_t len);
 
   }
 

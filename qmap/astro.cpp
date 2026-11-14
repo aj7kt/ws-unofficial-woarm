@@ -15,7 +15,7 @@ extern "C" {
                   double* elsun, double* azmoon, double* elmoon, double* azmoondx,
                   double* elmoondx, int* ntsky, int* ndop, int* ndop00,
                   double* ramoon, double* decmoon, double* dgrd, double* poloffset,
-                  double* xnr, int len1, int len2);
+                  double* xnr, fortran_charlen_t len1, fortran_charlen_t len2);
 }
 
 Astro::Astro (QString const& settings_filename, QWidget *parent) :
