@@ -1,4 +1,16 @@
+! The *_decoded callbacks below are internal procedures passed to the
+! decoders as actual arguments. If they reach the host's params through
+! host association the compiler must build a trampoline, which gfortran
+! and flang place on the stack; Windows DEP will not execute that (flang
+! builds then crash in the FT8 decoder). The callbacks instead see
+! params through this pointer, so they capture nothing from the host.
+module decoder_callback_params
+  include 'jt9com.f90'
+  type(params_block), pointer :: decode_params => null()
+end module decoder_callback_params
+
 subroutine multimode_decoder(ss,id2,params,nfsample)
+  use decoder_callback_params, only: decode_params
 
 !$ use omp_lib
   use prog_args
@@ -62,7 +74,7 @@ subroutine multimode_decoder(ss,id2,params,nfsample)
   logical first,firstsd !ft8md
   logical(1) lhoundprev !ft8md
   integer nutc,ndelay
-  type(params_block) :: params
+  type(params_block), target :: params
   data ndelay/0/
   data first/.true./ !ft8md
   data firstsd/.true./ !ft8md
@@ -93,6 +105,7 @@ subroutine multimode_decoder(ss,id2,params,nfsample)
   type(counting_fst4_decoder) :: my_fst4
   type(counting_q65_decoder) :: my_q65  
 
+  decode_params => params
    call ft8_init()
 
   if(.not.params%newdat .and. params%ntr.gt.ntr0) go to 800
@@ -1438,6 +1451,7 @@ contains
 
   subroutine jt4_decoded(this,snr,dt,freq,have_sync,sync,is_deep,    &
        decoded0,qual,ich,is_average,ave)
+    use decoder_callback_params, only: params => decode_params
     implicit none
     class(jt4_decoder), intent(inout) :: this
     integer, intent(in) :: snr
@@ -1486,6 +1500,7 @@ contains
   end subroutine jt4_decoded
 
   subroutine jt4_average (this, used, utc, sync, dt, freq, flip)
+    use decoder_callback_params, only: params => decode_params
     implicit none
     class(jt4_decoder), intent(inout) :: this
     logical, intent(in) :: used
@@ -1508,6 +1523,7 @@ contains
   subroutine jt65_decoded(this,sync,snr,dt,freq,drift,nflip,width,     &
        decoded0,ft,qual,nsmo,nsum,minsync)
 
+    use decoder_callback_params, only: params => decode_params
     use jt65_decode
     implicit none
 
@@ -1595,6 +1611,7 @@ contains
   end subroutine jt65_decoded
   
   subroutine jt9_decoded (this, sync, snr, dt, freq, drift, decoded)
+    use decoder_callback_params, only: params => decode_params
     use jt9_decode
     implicit none
 
@@ -1622,6 +1639,7 @@ contains
   end subroutine jt9_decoded
 
   subroutine ft8_decodedvar  (this,snr,dt,freq,decodedvar,nap,qual) !ft8md was(this,snr,dt,freq,decodedvar)
+    use decoder_callback_params, only: params => decode_params
     use ft8_decodevar
     implicit none
 
@@ -1722,6 +1740,7 @@ contains
   end subroutine ft8_decodedvar
   
   subroutine ft8_decoded (this,sync,snr,dt,freq,decoded,nap,qual)
+    use decoder_callback_params, only: params => decode_params
     use ft8_decode
     implicit none
 
@@ -1827,6 +1846,7 @@ contains
   end subroutine ft8_decoded
 
   subroutine ft4_decoded (this,sync,snr,dt,freq,decoded,nap,qual)
+    use decoder_callback_params, only: params => decode_params
     use ft4_decode
     implicit none
 
@@ -1869,6 +1889,7 @@ contains
   end subroutine ft4_decoded
   
   subroutine ft2_decoded (this,sync,snr,dt,freq,decoded,nap,qual)
+    use decoder_callback_params, only: params => decode_params
     use ft4_decode
     implicit none
 
@@ -1916,6 +1937,7 @@ contains
   subroutine fst4_decoded (this,nutc,sync,nsnr,dt,freq,decoded,nap,   &
        qual,ntrperiod,fmid,w50)
 
+    use decoder_callback_params, only: params => decode_params
     use fst4_decode
     implicit none
 
@@ -1977,6 +1999,7 @@ contains
   subroutine q65_decoded (this,nutc,snr1,nsnr,dt,freq,decoded,idec,   &
        nused,ntrperiod,iflagdec)
 
+    use decoder_callback_params, only: params => decode_params
     use q65_decode
     implicit none
 
