@@ -174,6 +174,28 @@ option (WSJT_RIG_NONE_CAN_SPLIT "Allow split operation with \"None\" as rig.")
 option (WSJT_TRACE_UDP "Debugging option that turns on UDP message protocol diagnostics.")
 option (WSJT_BUILD_UTILS "Build simulators and code demonstrators." ON)
 option (WSJT_FOX_OTP "Enable Fox OTP Verification Messages." ON)
+
+# Main window layout. These used to be separate source tarballs (normal,
+# _AL "alternate layout", _widescreen) that differed only in
+# widgets/mainwindow.ui and a few layout-specific lines in widgets/
+# mainwindow.{cpp,h} and widgets/about.cpp, now guarded by WS_LAYOUT_AL /
+# WS_LAYOUT_WIDESCREEN.
+set (WS_LAYOUT "standard" CACHE STRING "Main window layout: standard, al (alternate layout) or widescreen")
+set_property (CACHE WS_LAYOUT PROPERTY STRINGS standard al widescreen)
+string (TOLOWER "${WS_LAYOUT}" WS_LAYOUT)
+if (NOT WS_LAYOUT MATCHES "^(standard|al|widescreen)$")
+  message (FATAL_ERROR "WS_LAYOUT must be standard, al or widescreen (got \"${WS_LAYOUT}\")")
+endif ()
+set (WS_LAYOUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/widgets/layouts/${WS_LAYOUT}")
+if (WS_LAYOUT STREQUAL "al")
+  add_compile_definitions (WS_LAYOUT_AL)
+elseif (WS_LAYOUT STREQUAL "widescreen")
+  add_compile_definitions (WS_LAYOUT_WIDESCREEN)
+endif ()
+# AUTOUIC resolves #include "ui_mainwindow.h" here (the .ui is no longer
+# next to widgets/mainwindow.cpp).
+set (CMAKE_AUTOUIC_SEARCH_PATHS "${WS_LAYOUT_DIR}")
+message (STATUS "Main window layout: ${WS_LAYOUT}")
 CMAKE_DEPENDENT_OPTION (WSJT_QDEBUG_IN_RELEASE "Leave Qt debugging statements in Release configuration." OFF
   "NOT is_debug_build" OFF)
 CMAKE_DEPENDENT_OPTION (WSJT_ENABLE_EXPERIMENTAL_FEATURES "Enable features not fully ready for public releases." ON
@@ -876,7 +898,7 @@ set (wsprd_CSRCS
   )
 
 set (wsjtx_UISRCS
-  widgets/mainwindow.ui
+  ${WS_LAYOUT_DIR}/mainwindow.ui        # see WS_LAYOUT
   widgets/about.ui
   widgets/astro.ui
   widgets/colorhighlighting.ui

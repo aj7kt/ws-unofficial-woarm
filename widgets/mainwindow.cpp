@@ -653,7 +653,13 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
         m_config.udp_server_name (), m_config.udp_server_port (),
         m_config.udp_interface_names (), m_config.udp_TTL (),
         this}},
+#if defined(WS_LAYOUT_AL)
   m_psk_Reporter {&m_config, QString {"WS v" + version () + " ial"}.simplified ()},     // UR
+#elif defined(WS_LAYOUT_WIDESCREEN)
+  m_psk_Reporter {&m_config, QString {"WS v" + version () + " iws"}.simplified ()},     // UR
+#else
+  m_psk_Reporter {&m_config, QString {"WS v" + version () + " i"}.simplified ()},     // UR
+#endif // WS_LAYOUT
   m_manual {&m_network_manager},
   m_block_udp_status_updates {false},
   m_useDarkStyle {false}
@@ -2235,8 +2241,16 @@ void MainWindow::readSettings()
   ui->sbFST4W_FTol->setValue(m_settings->value("FST4W_FTol",100).toInt());
   ui->sbToneSpacing->setValue(m_settings->value("EchoToneSpacing",10).toInt());
   ui->rbFixedTone->setChecked(m_settings->value("EchoFixedTone",true).toBool());
+#if defined(WS_LAYOUT_AL)
   ui->rbEchoMessage->setChecked(m_settings->value("EchoMessageRB",false).toBool());
   ui->rbEchoCW->setChecked(m_settings->value("EchoCW",false).toBool());
+#elif defined(WS_LAYOUT_WIDESCREEN)
+  ui->rbEchoMessage->setChecked(m_settings->value("EchoMessageRB",true).toBool());
+  ui->rbEchoCW->setChecked(m_settings->value("EchoCW",true).toBool());
+#else
+  ui->rbEchoMessage->setChecked(m_settings->value("EchoMessageRB",false).toBool());
+  ui->rbEchoCW->setChecked(m_settings->value("EchoCW",false).toBool());
+#endif // WS_LAYOUT
   ui->leEchoMessage->setText(m_settings->value("EchoMessage",QString {}).toString());
   m_minSync=m_settings->value("MinSync",0).toInt();
   ui->syncSpinBox->setValue(m_minSync);
@@ -2350,7 +2364,11 @@ void MainWindow::readSettings()
     // We need this to initialize the height of tab 1 correctly
     ui->pbFreeText->setVisible(false);
     ui->cbSendMsg->setVisible(false);
+#if defined(WS_LAYOUT_AL)
     ui->tabWidget->setCurrentIndex(2);
+#else
+    ui->tabWidget->setCurrentIndex(1);
+#endif // WS_LAYOUT
     ui->tabWidget->setCurrentIndex(n);
   }
   if (m_mode=="JTTY") {
@@ -2460,10 +2478,51 @@ void MainWindow::set_application_font (QFont const& font)
       ui->label->setAlignment(Qt::AlignCenter);
       ui->outAttenuation->setMinimumWidth (2.8*pointSize + 8);
   }
+#if defined(WS_LAYOUT_AL)
   if (pointSize < 10) {
       ui->tabWidget->setMaximumHeight(220);                           // UR for AL
   } else {
       ui->tabWidget->setMaximumHeight(255);                           // UR for AL
+#else
+  if (pointSize < 11) {
+//      ui->tabWidget->setMaximumHeight(210);                           // UR for AL
+      if (ui->actionUse_Dark_Style->isChecked()) {
+//          ui->tabWidget->setMaximumHeight(225);                       // UR for normal + widescreen
+          ui->houndButton->setMinimumWidth(50);                       // UR for normal + widescreen
+          ui->ft8Button->setMinimumWidth(50);                         // UR for normal + widescreen
+          ui->ft4Button->setMinimumWidth(50);                         // UR for normal + widescreen
+          ui->ft2Button->setMinimumWidth(50);                         // UR for normal + widescreen
+          ui->msk144Button->setMinimumWidth(50);                      // UR for normal + widescreen
+          ui->q65Button->setMinimumWidth(50);                         // UR for normal + widescreen
+          ui->jt65Button->setMinimumWidth(50);                        // UR for normal + widescreen
+      } else {
+//          ui->tabWidget->setMaximumHeight(225);                       // UR for normal + widescreen
+          ui->houndButton->setMaximumWidth(40);                       // UR for normal + widescreen
+          ui->ft8Button->setMaximumWidth(40);                         // UR for normal + widescreen
+          ui->ft4Button->setMaximumWidth(40);                         // UR for normal + widescreen
+          ui->ft2Button->setMaximumWidth(40);                         // UR for normal + widescreen
+          ui->msk144Button->setMaximumWidth(40);                      // UR for normal + widescreen
+          ui->q65Button->setMaximumWidth(40);                         // UR for normal + widescreen
+          ui->jt65Button->setMaximumWidth(40);                        // UR for normal + widescreen
+          ui->houndButton->setMinimumWidth(0);                        // UR for normal + widescreen
+          ui->ft8Button->setMinimumWidth(0);                          // UR for normal + widescreen
+          ui->ft4Button->setMinimumWidth(0);                          // UR for normal + widescreen
+          ui->ft2Button->setMinimumWidth(0);                          // UR for normal + widescreen
+          ui->msk144Button->setMinimumWidth(0);                       // UR for normal + widescreen
+          ui->q65Button->setMinimumWidth(0);                          // UR for normal + widescreen
+          ui->jt65Button->setMinimumWidth(0);                         // UR for normal + widescreen
+      }
+  } else {
+//      ui->tabWidget->setMaximumHeight(255);                           // UR for AL
+//      ui->tabWidget->setMaximumHeight(500);                           // UR for normal + widescreen
+      ui->houndButton->setMinimumWidth(50);                           // UR for normal + widescreen
+      ui->ft8Button->setMinimumWidth(50);                             // UR for normal + widescreen
+      ui->ft4Button->setMinimumWidth(50);                             // UR for normal + widescreen
+      ui->ft2Button->setMinimumWidth(50);                             // UR for normal + widescreen
+      ui->msk144Button->setMinimumWidth(50);                          // UR for normal + widescreen
+      ui->q65Button->setMinimumWidth(50);                             // UR for normal + widescreen
+      ui->jt65Button->setMinimumWidth(50);                            // UR for normal + widescreen
+#endif // WS_LAYOUT
   }
   if (m_config.largerTabWidget()) ui->tabWidget->setMaximumHeight(1000);
   for (auto& widget : qApp->topLevelWidgets ())
@@ -9137,6 +9196,10 @@ void MainWindow::guiUpdate()
             }
           }
         }
+#if defined(WS_LAYOUT_AL)
+#else
+
+#endif // WS_LAYOUT
         if(m_mode=="FT4" or m_mode=="FT2") {
           int ichk=0;
           char ft4msgbits[77];
@@ -9927,9 +9990,15 @@ void MainWindow::guiUpdate()
     }
 
     QDateTime t = QDateTime::currentDateTimeUtc();
+#if defined(WS_LAYOUT_AL)
 //    QString utc = t.date().toString("yyyy MMM dd") + "\n " +
 //      t.time().toString() + " ";
     QString utc = t.time().toString();      // UR for AL version use this and disable the 2 lines above
+#else
+    QString utc = t.date().toString("yyyy MMM dd") + "\n " +
+      t.time().toString() + " ";
+//    QString utc = t.time().toString();      // UR for AL version use this and disable the 2 lines above
+#endif // WS_LAYOUT
     ui->labUTC->setText(utc);
     if(m_bBestSPArmed and (m_dateTimeBestSP.secsTo(t) >= 120)) on_pbBestSP_clicked(); //BestSP timeout
     if(!m_monitoring and !m_diskData) ui->signal_meter_widget->setValue(0,0);
@@ -11733,10 +11802,13 @@ void MainWindow::mousePressEvent(QMouseEvent *event)    // mouse press events
       on_actionJT9_triggered();
       ui->jt65Button->clearFocus();
   }
+#if defined(WS_LAYOUT_AL)
   if(ui->wsprButton->hasFocus() && (event->button() & Qt::RightButton)) {      // switch to JTTY mode
       on_actionJTTY_triggered();
       ui->wsprButton->clearFocus();
   }
+#else
+#endif // WS_LAYOUT
   if(ui->houndButton->hasFocus() && (event->button() & Qt::RightButton)) {     // toggle SuperFox mode
       keep_frequency = true;
       not_erase = true;         // prevent erasing the decodedTextBrowser
@@ -13438,7 +13510,13 @@ void MainWindow::switch_mode (Mode mode)
   ui->tabWidget->setVisible(!b);
   if(b) {
     ui->DX_controls_widget->setVisible(false);
+#if defined(WS_LAYOUT_AL)
 //    ui->rh_decodes_widget->setVisible (false);     // UR disable for AL + widescreen versions
+#elif defined(WS_LAYOUT_WIDESCREEN)
+//    ui->rh_decodes_widget->setVisible (false);     // UR disable for AL + widescreen versions
+#else
+    ui->rh_decodes_widget->setVisible (false);     // UR disable for AL + widescreen versions
+#endif // WS_LAYOUT
     ui->lh_decodes_title_label->setVisible(false);
   }
   QTimer::singleShot (500, [=] {
@@ -13454,16 +13532,25 @@ void MainWindow::switch_mode (Mode mode)
   // F1-F8 send the JTTY macros, so these menu shortcuts must not take the keys
   ui->actionMessage_averaging->setShortcut(jtty ? QKeySequence {} : QKeySequence {Qt::Key_F7});
   ui->actionEcho_Graph->setShortcut(jtty ? QKeySequence {} : QKeySequence {Qt::Key_F8});
+#if defined(WS_LAYOUT_AL)
   // AL only: The JTTY controls must be in a separate widget.
   ui->JTTY_widget->setEnabled(jtty);
   ui->JTTY_widget->setVisible(jtty);
   ui->tabWidget->setEnabled(!jtty);
   ui->tabWidget->setVisible(!jtty);
+#else
+#endif // WS_LAYOUT
 }
 
 void MainWindow::WSPR_config(bool b)
 {
+#if defined(WS_LAYOUT_AL)
 //  ui->rh_decodes_widget->setVisible(!b);     // UR disable for AL + widescreen version
+#elif defined(WS_LAYOUT_WIDESCREEN)
+//  ui->rh_decodes_widget->setVisible(!b);     // UR disable for AL + widescreen version
+#else
+  ui->rh_decodes_widget->setVisible(!b);     // UR disable for AL + widescreen version
+#endif // WS_LAYOUT
   ui->controls_stack_widget->setCurrentIndex (b && m_mode != "Echo" ? 2 : 0);
   if(m_mode=="Echo") ui->controls_stack_widget->setCurrentIndex(3);
   if(m_mode=="JTTY") ui->controls_stack_widget->setCurrentIndex(1);
@@ -17458,6 +17545,7 @@ void MainWindow::on_jt65Button_clicked()
 {
     on_actionJT65_triggered();
 }
+#if defined(WS_LAYOUT_AL)
 /*
 void MainWindow::on_fst4Button_clicked()     // UR disable for normal + widescreen versions
 {
@@ -17471,6 +17559,12 @@ void MainWindow::on_fst4Button_clicked()     // UR disable for normal + widescre
 void MainWindow::on_wsprButton_clicked()     // UR disable for normal + widescreen versions
 {
     on_actionWSPR_triggered();
+#else
+
+void MainWindow::on_echoButton_clicked()
+{
+    on_actionEcho_triggered();
+#endif // WS_LAYOUT
 }
 
 void MainWindow::sfox_tx() {
@@ -18151,6 +18245,7 @@ void MainWindow::on_actionUse_Dark_Style_triggered (bool checked)
     }
     // ensure a balanced layout
     qreal pointSize = m_config.text_font().pointSizeF();
+#if defined(WS_LAYOUT_AL)
     if (pointSize < 9) ui->controls_stack_widget->setMaximumWidth(180);     // UR for AL
     if (pointSize == 9) ui->controls_stack_widget->setMaximumWidth(200);    // UR for AL
     if (pointSize == 10) ui->controls_stack_widget->setMaximumWidth(220);   // UR for AL
@@ -18161,6 +18256,20 @@ void MainWindow::on_actionUse_Dark_Style_triggered (bool checked)
     } else {
         ui->tabWidget->setMaximumHeight(255);                               // UR for AL
         ui->controls_stack_widget->setMaximumHeight(220);                   // UR for AL
+#else
+//    if (pointSize < 9) ui->controls_stack_widget->setMaximumWidth(180);     // UR for AL
+//    if (pointSize == 9) ui->controls_stack_widget->setMaximumWidth(200);    // UR for AL
+//    if (pointSize == 10) ui->controls_stack_widget->setMaximumWidth(220);   // UR for AL
+//    if (pointSize > 10) ui->controls_stack_widget->setMaximumWidth(240);    // UR for AL
+    if (pointSize < 11) {
+//        ui->tabWidget->setMaximumHeight(210);                               // UR for AL
+//        ui->controls_stack_widget->setMaximumHeight(200);                   // UR for AL
+        if (ui->actionUse_Dark_Style->isChecked()) ui->tabWidget->setMaximumHeight(225);  // UR for normal + widescreen
+    } else {
+//        ui->tabWidget->setMaximumHeight(255);                               // UR for AL
+//        ui->controls_stack_widget->setMaximumHeight(225);                   // UR for AL
+        ui->tabWidget->setMaximumHeight(500);                               // UR for normal + widescreen
+#endif // WS_LAYOUT
     }
     for (auto& widget : qApp->topLevelWidgets ())
       {
@@ -18227,7 +18336,11 @@ void MainWindow::check_msk144_TRperiod()
 void MainWindow::check_button_color()
 {
   // Yellow background for the DX Call and Enable Tx buttons when the rig is allowed to Tx automatically
+#if defined(WS_LAYOUT_AL)
   if((((m_mode.startsWith ("FT") or m_mode=="Q65" or m_mode=="FST4" or m_mode=="MSK144" or m_mode.startsWith ("JT")) &&
+#else
+  if((((m_mode.startsWith ("FT") or m_mode=="Q65" or m_mode=="FST4" or m_mode=="MSK144" or m_mode=="JT65" or m_mode=="JT9" or m_mode=="JT4") &&
+#endif // WS_LAYOUT
         m_specOp==SpecOp::NONE && ui->cbAutoSeq->isChecked() && ui->cbAutoSeq->isChecked()
         && m_config.Wait_features_enabled()) or m_specOp==SpecOp::HOUND) && (m_hisCall!="" or (m_mode=="FT8" && m_specOp==SpecOp::HOUND))) {
     if (ui->DX_Call_Button->isChecked()) {
@@ -18387,6 +18500,7 @@ void MainWindow::check_button_color()
     }
   }
   if (ui->houndButton->isChecked()) {
+#if defined(WS_LAYOUT_AL)
     ui->houndButton->setStyleSheet("QPushButton {background-color: #ff0000; color: #ffffff; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none;}");
   } else {
     if (SpecOp::FOX==m_specOp) {
@@ -18396,55 +18510,112 @@ void MainWindow::check_button_color()
         ui->houndButton->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none;}");
       } else {
         ui->houndButton->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none;}");
+#else
+    ui->houndButton->setStyleSheet("QPushButton {background-color: #ff0000; color: #ffffff; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none; min-width: 3em;}");
+  } else {
+    if (SpecOp::FOX==m_specOp) {
+      ui->houndButton->setStyleSheet("QPushButton {background-color: #ffff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none; min-width: 3em;}");
+    } else {
+      if (m_useDarkStyle) {
+        ui->houndButton->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none; min-width: 3em;}");
+      } else {
+        ui->houndButton->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none; min-width: 3em;}");
+#endif // WS_LAYOUT
       }
     }
   }
   if (m_mode=="FT8") {
+#if defined(WS_LAYOUT_AL)
     ui->ft8Button->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none;}");
   } else {
     if (m_useDarkStyle) {
       ui->ft8Button->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none;}");
     } else {
       ui->ft8Button->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none;}");
+#else
+    ui->ft8Button->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none; min-width: 3em;}");
+  } else {
+    if (m_useDarkStyle) {
+      ui->ft8Button->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none; min-width: 3em;}");
+    } else {
+      ui->ft8Button->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none; min-width: 3em;}");
+#endif // WS_LAYOUT
     }
   }
   if (m_mode=="FT4") {
+#if defined(WS_LAYOUT_AL)
     ui->ft4Button->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none;}");
   } else {
     if (m_useDarkStyle) {
       ui->ft4Button->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none;}");
     } else {
       ui->ft4Button->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none;}");
+#else
+    ui->ft4Button->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none; min-width: 3em;}");
+  } else {
+    if (m_useDarkStyle) {
+      ui->ft4Button->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none; min-width: 3em;}");
+    } else {
+      ui->ft4Button->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none; min-width: 3em;}");
+#endif // WS_LAYOUT
     }
   }
   if (m_mode=="FT2") {
+#if defined(WS_LAYOUT_AL)
     ui->ft2Button->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none;}");
   } else {
     if (m_useDarkStyle) {
       ui->ft2Button->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none;}");
     } else {
       ui->ft2Button->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none;}");
+#else
+    ui->ft2Button->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none; min-width: 3em;}");
+  } else {
+    if (m_useDarkStyle) {
+      ui->ft2Button->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none; min-width: 3em;}");
+    } else {
+      ui->ft2Button->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none; min-width: 3em;}");
+#endif // WS_LAYOUT
     }
   }
   if (m_mode=="MSK144") {
+#if defined(WS_LAYOUT_AL)
     ui->msk144Button->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none;}");
   } else {
      if (m_useDarkStyle) {
       ui->msk144Button->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none;}");
     } else {
       ui->msk144Button->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none;}");
+#else
+    ui->msk144Button->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none; min-width: 3em;}");
+  } else {
+    if (m_useDarkStyle) {
+      ui->msk144Button->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none; min-width: 3em;}");
+    } else {
+      ui->msk144Button->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none; min-width: 3em;}");
+#endif // WS_LAYOUT
     }
   }
   if (m_mode=="Q65") {
+#if defined(WS_LAYOUT_AL)
     ui->q65Button->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none;}");
   } else {
     if (m_useDarkStyle) {
       ui->q65Button->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none;}");
     } else {
       ui->q65Button->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none;}");
+#else
+    ui->q65Button->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none; min-width: 3em;}");
+  } else {
+    if (m_useDarkStyle) {
+      ui->q65Button->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none; min-width: 3em;}");
+    } else {
+      ui->q65Button->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none; min-width: 3em;}");
+#endif // WS_LAYOUT
     }
   }
   if (m_mode=="JT65") {
+#if defined(WS_LAYOUT_AL)
     ui->jt65Button->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none;}");
   } else {
     if (m_useDarkStyle) {
@@ -18487,6 +18658,30 @@ void MainWindow::check_button_color()
     }
   }
 */
+#else
+    ui->jt65Button->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none; min-width: 3em;}");
+  } else {
+    if (m_useDarkStyle) {
+      ui->jt65Button->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none; min-width: 3em;}");
+    } else {
+      ui->jt65Button->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none; min-width: 3em;}");
+    }
+  }
+  if (m_mode=="Echo" && ui->echoButton->isVisible()) {
+    ui->echoButton->setStyleSheet("QPushButton {background-color: #00ff00; color: #000000; border: 1px solid #32414B; border-radius: 5px; padding: 3px; outline: none; min-width: 3em;}");
+  } else {
+    if (m_useDarkStyle) {
+      ui->echoButton->setStyleSheet("QPushButton {background-color: #505F69; border: 1px solid #32414B; color: #F0F0F0; border-radius: 4px; padding: 3px; outline: none; min-width: 3em;}");
+    } else {
+      ui->echoButton->setStyleSheet("QPushButton {background-color: #e1e1e1; border: 1px solid #adadad; border-radius: 0px; padding: 3px; outline: none; min-width: 3em;}");
+    }
+  }
+  if (m_config.enable_VHF_features() && m_config.decode_at_52s()) {
+    ui->echoButton->setVisible (true);
+  } else {
+    ui->echoButton->setVisible (false);
+  }
+#endif // WS_LAYOUT
   if (m_mode=="JT65" && m_config.enable_VHF_features() && ui->cbShMsgs->isChecked()) {
     ui->tx3->setStyleSheet("color: #000000; background-color: #66ffff");
     ui->tx4->setStyleSheet("color: #000000; background-color: #66ffff");

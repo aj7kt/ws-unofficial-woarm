@@ -215,8 +215,12 @@ private slots:
   void on_msk144Button_clicked();
   void on_q65Button_clicked();
   void on_jt65Button_clicked();
+#if defined(WS_LAYOUT_AL)
 //  void on_fst4Button_clicked();
   void on_wsprButton_clicked();
+#else
+  void on_echoButton_clicked();
+#endif // WS_LAYOUT
   void on_pb15A_clicked();
   void on_pb15C_clicked();
   void on_pb30B_clicked();

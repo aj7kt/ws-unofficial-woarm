@@ -14,7 +14,13 @@ CAboutDlg::CAboutDlg(QWidget *parent) :
   ui->setupUi(this);
 
   ui->labelTxt->setText ("<h2>" + QString {"WS v" + QCoreApplication::applicationVersion ()
+#if defined(WS_LAYOUT_AL)
                                            + " " + revision ()}.simplified () + " AL</h2>"
+#elif defined(WS_LAYOUT_WIDESCREEN)
+                                           + " " + revision ()}.simplified () + " widescreen</h2>"
+#else
+                                           + " " + revision ()}.simplified () + "</h2>"
+#endif // WS_LAYOUT
 
     "<b>WS - Weak Signal Digital Mode Suite by DG2YCB et al.,</b><br/>"
     "<b>formerly known as WSJT-X Improved.</b><br/>"
