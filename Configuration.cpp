@@ -3033,6 +3033,14 @@ void Configuration::impl::read_settings ()
     if (rig_params_.ptt_type == TransceiverFactory::PTT_method_CAT) rig_params_.ptt_type = TransceiverFactory::PTT_method_VOX;
   }
 #ifdef WIN32
+#if defined(_M_ARM64) || defined(__aarch64__)
+  // The Hamlib DLL download only offers x86/x64 builds, which an arm64
+  // ws.exe cannot load; hide it until there is an arm64 DLL source.
+  // Reverting to a backed-up DLL only swaps local files, so it stays.
+  ui_->rbHamlib64->setVisible(false);
+  ui_->rbHamlib32->setVisible(false);
+  ui_->hamlib_download_button->setVisible(false);
+#endif
   QTimer::singleShot (2500, [=] {display_file_information ();});
 #else
   ui_->hamlib_groupBox->setTitle("Hamlib Version");
@@ -4352,6 +4360,10 @@ void Configuration::impl::on_decoded_text_font_push_button_clicked ()
 
 void Configuration::impl::on_hamlib_download_button_clicked (bool /*clicked*/)
 {
+#if defined(_M_ARM64) || defined(__aarch64__)
+  // see the constructor: no arm64 DLL is offered by the download source
+  return;
+#endif
 #ifdef WIN32
   extern char* hamlib_version2;
   QString hamlib = QString(QLatin1String(hamlib_version2));
