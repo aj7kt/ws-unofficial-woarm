@@ -1,4 +1,5 @@
 #include "about.h"
+#include "ws_layout.h"   // WS_LAYOUT_AL / WS_LAYOUT_WIDESCREEN (generated)
 
 #include <QCoreApplication>
 #include <QString>

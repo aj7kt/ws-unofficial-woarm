@@ -2,6 +2,8 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "ws_layout.h"   // WS_LAYOUT_AL / WS_LAYOUT_WIDESCREEN (generated)
+
 #include <QMainWindow>
 #include <QByteArray>
 #include <QString>
