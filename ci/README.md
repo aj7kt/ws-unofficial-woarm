@@ -9,6 +9,18 @@ Native ARM64 Windows builds of WS with the MSYS2 **CLANGARM64** toolchain
 | `build-ws.sh` | configure, build and install WS against a given Hamlib prefix |
 | `fetch-hamlib-release.ps1` | download + verify a Hamlib release into a prefix |
 | `smoke-test.sh` | simulate FT8/FT4/WSPR signals and check they decode |
+| `make-installer.sh` | build the NSIS installer for a build tree's layout |
+| `test-installer.ps1` | silent install, run, silent uninstall of an installer (needs admin) |
+
+## Installers
+
+`make-installer.sh` runs CPack's NSIS generator with WS's own template.
+It needs `makensis`: MSYS2's `mingw-w64-x86_64-nsis` (there is no ARM64
+NSIS; the x64 one runs emulated, and NSIS installers are 32-bit x86
+programs in any case). The Windows on Arm installer has its own identity,
+so it installs side by side with an official x64 WS of the same version:
+`C:\WS\<version>-arm64`, "WS <version> (ARM64)" in Apps and Start menu, and
+its own registry keys. It refuses to run on non-ARM64 Windows.
 
 ## Hamlib
 

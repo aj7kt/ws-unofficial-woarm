@@ -48,6 +48,7 @@ env:
     mingw-w64-clang-aarch64-fftw
     mingw-w64-clang-aarch64-libusb
     mingw-w64-clang-aarch64-portaudio
+    mingw-w64-x86_64-nsis
 
 jobs:
   # One job builds all three layouts: MSYS2 is set up once, and after the
@@ -82,21 +83,27 @@ jobs:
           update: true
           install: ${{ env.MSYS2_PACKAGES }}
 
-      - name: Build and install (standard)
+      - name: Build, install and package (standard)
         shell: msys2 {0}
-        run: WS_LAYOUT=standard bash ci/build-ws.sh . ../ws-build ../ws-install-standard ../hamlib-install
+        run: |
+          WS_LAYOUT=standard bash ci/build-ws.sh . ../ws-build ../ws-install-standard ../hamlib-install
+          bash ci/make-installer.sh ../ws-build ../ws-installers
 
       - name: Decoder smoke test
         shell: msys2 {0}
         run: bash ci/smoke-test.sh "$PWD/../ws-build" "$PWD/../smoke"
 
-      - name: Build and install (AL)
+      - name: Build, install and package (AL)
         shell: msys2 {0}
-        run: WS_LAYOUT=al bash ci/build-ws.sh . ../ws-build ../ws-install-al ../hamlib-install
+        run: |
+          WS_LAYOUT=al bash ci/build-ws.sh . ../ws-build ../ws-install-al ../hamlib-install
+          bash ci/make-installer.sh ../ws-build ../ws-installers
 
-      - name: Build and install (widescreen)
+      - name: Build, install and package (widescreen)
         shell: msys2 {0}
-        run: WS_LAYOUT=widescreen bash ci/build-ws.sh . ../ws-build ../ws-install-widescreen ../hamlib-install
+        run: |
+          WS_LAYOUT=widescreen bash ci/build-ws.sh . ../ws-build ../ws-install-widescreen ../hamlib-install
+          bash ci/make-installer.sh ../ws-build ../ws-installers
 
       - name: Check every bundled binary is ARM64
         shell: msys2 {0}
@@ -108,6 +115,12 @@ jobs:
           done
           exit $bad
 
+      # Silent install, run, silent uninstall of one installer (AL); the
+      # others are built the same way.
+      - name: Test the AL installer
+        shell: pwsh
+        run: ./ci/test-installer.ps1 -Installer (Get-ChildItem ../ws-installers/WS-*-al.exe).FullName
+
       - name: Package
         id: pkg
         shell: pwsh
@@ -116,6 +129,7 @@ jobs:
           New-Item -ItemType Directory dist | Out-Null
           foreach ($layout in 'standard', 'al', 'widescreen') {
             Compress-Archive -Path "../ws-install-$layout/*" -DestinationPath "dist/WS-3.2.1-win-arm64-$layout-$ver.zip"
+            Copy-Item "../ws-installers/WS-3.2.1-win-arm64-$layout.exe" "dist/WS-3.2.1-win-arm64-$layout-$ver.exe"
           }
           Get-ChildItem dist | Format-Table Name, Length
           "name=WS-3.2.1-win-arm64-$ver" >> $env:GITHUB_OUTPUT
@@ -123,7 +137,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.pkg.outputs.name }}
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/*.exe
 
   # A standing *draft* release per branch (placeholder tag next-<branch>),
   # updated in place by every successful push build: same draft, new zips,
@@ -158,9 +174,9 @@ jobs:
           tag="next-${GITHUB_REF_NAME//\//-}"
           short=$(cut -c1-9 <<<"$GITHUB_SHA")
           title="WS 3.2.1 for Windows on Arm, next from $GITHUB_REF_NAME (build ${{ github.run_number }}, $short)"
-          (cd dist && sha256sum *.zip > SHA256SUMS)
+          (cd dist && sha256sum *.exe *.zip > SHA256SUMS)
           {
-            echo "Native Windows on Arm (ARM64) builds of WS 3.2.1, one zip per main window layout."
+            echo "Native Windows on Arm (ARM64) builds of WS 3.2.1: an installer and a zip per main window layout."
             echo
             echo "- commit: $GITHUB_SHA ($GITHUB_REF_NAME)"
             echo "- built by: $GITHUB_SERVER_URL/$R/actions/runs/$GITHUB_RUN_ID"
@@ -184,9 +200,9 @@ jobs:
               gh release edit "$tag" -R "$R" --target "$GITHUB_SHA" --title "$title" --notes-file notes.md
               gh release view "$tag" -R "$R" --json assets --jq '.assets[].name' |
                 while read -r a; do gh release delete-asset "$tag" "$a" -R "$R" --yes; done
-              gh release upload "$tag" -R "$R" dist/*.zip dist/SHA256SUMS ;;
+              gh release upload "$tag" -R "$R" dist/*.exe dist/*.zip dist/SHA256SUMS ;;
             *)
               echo "creating standing draft $tag"
               gh release create "$tag" -R "$R" --draft --target "$GITHUB_SHA" \
-                --title "$title" --notes-file notes.md dist/*.zip dist/SHA256SUMS ;;
+                --title "$title" --notes-file notes.md dist/*.exe dist/*.zip dist/SHA256SUMS ;;
           esac
