@@ -50,13 +50,13 @@ env:
     mingw-w64-clang-aarch64-portaudio
 
 jobs:
+  # One job builds all three layouts: MSYS2 is set up once, and after the
+  # first layout only ws.exe is rebuilt for the others (the layout affects
+  # that target alone). Installs go outside the checkout: the sources have
+  # an INSTALL file, and Windows file names are case-insensitive.
   ws:
-    name: WS ${{ matrix.layout }}
+    name: WS (standard, AL, widescreen)
     runs-on: windows-11-arm
-    strategy:
-      fail-fast: false
-      matrix:
-        layout: [standard, al, widescreen]
     steps:
       # Keep the sources' line endings as committed.
       - run: git config --global core.autocrlf false
@@ -72,7 +72,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          ./ci/fetch-hamlib-release.ps1 -Dest hamlib-install
+          ./ci/fetch-hamlib-release.ps1 -Dest ../hamlib-install
           -Repo $env:HAMLIB_RELEASE_REPO
           -Tag '${{ inputs.hamlib_release || env.HAMLIB_RELEASE }}'
 
@@ -82,21 +82,27 @@ jobs:
           update: true
           install: ${{ env.MSYS2_PACKAGES }}
 
-      - name: Build and install
+      - name: Build and install (standard)
         shell: msys2 {0}
-        env:
-          WS_LAYOUT: ${{ matrix.layout }}
-        run: bash ci/build-ws.sh . ../ws-build install hamlib-install
+        run: WS_LAYOUT=standard bash ci/build-ws.sh . ../ws-build ../ws-install-standard ../hamlib-install
 
       - name: Decoder smoke test
         shell: msys2 {0}
         run: bash ci/smoke-test.sh "$PWD/../ws-build" "$PWD/../smoke"
 
+      - name: Build and install (AL)
+        shell: msys2 {0}
+        run: WS_LAYOUT=al bash ci/build-ws.sh . ../ws-build ../ws-install-al ../hamlib-install
+
+      - name: Build and install (widescreen)
+        shell: msys2 {0}
+        run: WS_LAYOUT=widescreen bash ci/build-ws.sh . ../ws-build ../ws-install-widescreen ../hamlib-install
+
       - name: Check every bundled binary is ARM64
         shell: msys2 {0}
         run: |
           bad=0
-          for f in install/bin/*.exe install/bin/*.dll; do
+          for f in ../ws-install-*/bin/*.exe ../ws-install-*/bin/*.dll; do
             fmt=$(llvm-objdump -f "$f" | grep -o 'coff-[a-z0-9-]*')
             [ "$fmt" = coff-arm64 ] || { echo "not ARM64: $f ($fmt)"; bad=1; }
           done
@@ -107,14 +113,17 @@ jobs:
         shell: pwsh
         run: |
           $ver = (git describe --tags --always)
-          $name = "WS-3.2.1-win-arm64-${{ matrix.layout }}-$ver"
-          Compress-Archive -Path install/* -DestinationPath "$name.zip"
-          "name=$name" >> $env:GITHUB_OUTPUT
+          New-Item -ItemType Directory dist | Out-Null
+          foreach ($layout in 'standard', 'al', 'widescreen') {
+            Compress-Archive -Path "../ws-install-$layout/*" -DestinationPath "dist/WS-3.2.1-win-arm64-$layout-$ver.zip"
+          }
+          Get-ChildItem dist | Format-Table Name, Length
+          "name=WS-3.2.1-win-arm64-$ver" >> $env:GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.pkg.outputs.name }}
-          path: ${{ steps.pkg.outputs.name }}.zip
+          path: dist/*.zip
 
   # A standing *draft* release per branch (placeholder tag next-<branch>),
   # updated in place by every successful push build: same draft, new zips,
