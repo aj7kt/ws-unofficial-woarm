@@ -1,0 +1,117 @@
+name: Windows on Arm build
+
+on:
+  push:
+    branches: [main, windows-on-arm]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      hamlib_release:
+        description: hamlib-woarm-builds release tag to build against ('latest' for the newest)
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Hamlib comes prebuilt (libhamlib-4.dll, headers, import library, rigctl
+  # tools) from a pinned release of the separate hamlib-woarm-builds repo.
+  # Move to a newer Hamlib by changing this tag.
+  HAMLIB_RELEASE_REPO: aj7kt/hamlib-woarm-builds
+  HAMLIB_RELEASE: hamlib-4.7.3-rc-f788e348d-win-arm64
+  # MSYS2 CLANGARM64: clang/flang/lld, Qt 6, Boost, FFTW, ...
+  MSYS2_PACKAGES: >-
+    git
+    mingw-w64-clang-aarch64-clang
+    mingw-w64-clang-aarch64-lld
+    mingw-w64-clang-aarch64-flang
+    mingw-w64-clang-aarch64-llvm-openmp
+    mingw-w64-clang-aarch64-llvm-tools
+    mingw-w64-clang-aarch64-cmake
+    mingw-w64-clang-aarch64-ninja
+    mingw-w64-clang-aarch64-pkgconf
+    mingw-w64-clang-aarch64-qt6-base
+    mingw-w64-clang-aarch64-qt6-multimedia
+    mingw-w64-clang-aarch64-qt6-serialport
+    mingw-w64-clang-aarch64-qt6-websockets
+    mingw-w64-clang-aarch64-qt6-svg
+    mingw-w64-clang-aarch64-qt6-tools
+    mingw-w64-clang-aarch64-qt6-translations
+    mingw-w64-clang-aarch64-qt6-imageformats
+    mingw-w64-clang-aarch64-qt6-activeqt
+    mingw-w64-clang-aarch64-boost
+    mingw-w64-clang-aarch64-fftw
+    mingw-w64-clang-aarch64-libusb
+    mingw-w64-clang-aarch64-portaudio
+
+jobs:
+  ws:
+    name: WS ${{ matrix.layout }}
+    runs-on: windows-11-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        layout: [standard, al, widescreen]
+    steps:
+      # Keep the sources' line endings as committed.
+      - run: git config --global core.autocrlf false
+        shell: pwsh
+
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0     # version info is derived from git
+
+      # CI always builds against a release (never a local Hamlib tree).
+      - name: Fetch and verify the Hamlib release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          ./ci/fetch-hamlib-release.ps1 -Dest hamlib-install
+          -Repo $env:HAMLIB_RELEASE_REPO
+          -Tag '${{ inputs.hamlib_release || env.HAMLIB_RELEASE }}'
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANGARM64
+          update: true
+          install: ${{ env.MSYS2_PACKAGES }}
+
+      - name: Build and install
+        shell: msys2 {0}
+        env:
+          WS_LAYOUT: ${{ matrix.layout }}
+        run: bash ci/build-ws.sh . ../ws-build install hamlib-install
+
+      - name: Decoder smoke test
+        shell: msys2 {0}
+        run: bash ci/smoke-test.sh "$PWD/../ws-build" "$PWD/../smoke"
+
+      - name: Check every bundled binary is ARM64
+        shell: msys2 {0}
+        run: |
+          bad=0
+          for f in install/bin/*.exe install/bin/*.dll; do
+            fmt=$(llvm-objdump -f "$f" | grep -o 'coff-[a-z0-9-]*')
+            [ "$fmt" = coff-arm64 ] || { echo "not ARM64: $f ($fmt)"; bad=1; }
+          done
+          exit $bad
+
+      - name: Package
+        id: pkg
+        shell: pwsh
+        run: |
+          $ver = (git describe --tags --always)
+          $name = "WS-3.2.1-win-arm64-${{ matrix.layout }}-$ver"
+          Compress-Archive -Path install/* -DestinationPath "$name.zip"
+          "name=$name" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.pkg.outputs.name }}
+          path: ${{ steps.pkg.outputs.name }}.zip
