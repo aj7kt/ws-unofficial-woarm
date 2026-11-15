@@ -115,3 +115,69 @@ jobs:
         with:
           name: ${{ steps.pkg.outputs.name }}
           path: ${{ steps.pkg.outputs.name }}.zip
+
+  # A standing *draft* release per branch (placeholder tag next-<branch>),
+  # updated in place by every successful push build: same draft, new zips,
+  # SHA256SUMS, target commit and notes. Drafts are visible only to people
+  # with write access; nothing is public until you promote the draft: edit
+  # it, change the tag to e.g. v3.2.1-woa1 and publish. The next build then
+  # starts a new standing draft. Notes typed into the draft are replaced by
+  # the next build, so write them when promoting. Tag pushes and pull
+  # requests do not touch the draft.
+  draft:
+    needs: ws
+    if: github.event_name == 'push' && github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: standing-draft-${{ github.ref_name }}
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: WS-*
+          merge-multiple: true
+          path: dist
+
+      - name: Update the standing draft release
+        run: |
+          set -euo pipefail
+          R=$GITHUB_REPOSITORY
+          tag="next-${GITHUB_REF_NAME//\//-}"
+          short=$(cut -c1-9 <<<"$GITHUB_SHA")
+          title="WS 3.2.1 for Windows on Arm, next from $GITHUB_REF_NAME (build ${{ github.run_number }}, $short)"
+          (cd dist && sha256sum *.zip > SHA256SUMS)
+          {
+            echo "Native Windows on Arm (ARM64) builds of WS 3.2.1, one zip per main window layout."
+            echo
+            echo "- commit: $GITHUB_SHA ($GITHUB_REF_NAME)"
+            echo "- built by: $GITHUB_SERVER_URL/$R/actions/runs/$GITHUB_RUN_ID"
+            echo "- Hamlib: ${{ env.HAMLIB_RELEASE }}"
+            echo
+            echo '```'
+            cat dist/SHA256SUMS
+            echo '```'
+            echo
+            echo "_Standing draft, replaced by every build of $GITHUB_REF_NAME. To release it,"
+            echo "change the tag (e.g. to v3.2.1-woa1), write the notes and publish._"
+          } > notes.md
+
+          state=$(TAG="$tag" gh release list -R "$R" --limit 200 --json tagName,isDraft \
+                    --jq '.[] | select(.tagName == env.TAG) | if .isDraft then "draft" else "published" end')
+          case "$state" in
+            published)
+              echo "::error::$tag is a published release; refusing to overwrite it"; exit 1 ;;
+            draft)
+              echo "updating standing draft $tag"
+              gh release edit "$tag" -R "$R" --target "$GITHUB_SHA" --title "$title" --notes-file notes.md
+              gh release view "$tag" -R "$R" --json assets --jq '.assets[].name' |
+                while read -r a; do gh release delete-asset "$tag" "$a" -R "$R" --yes; done
+              gh release upload "$tag" -R "$R" dist/*.zip dist/SHA256SUMS ;;
+            *)
+              echo "creating standing draft $tag"
+              gh release create "$tag" -R "$R" --draft --target "$GITHUB_SHA" \
+                --title "$title" --notes-file notes.md dist/*.zip dist/SHA256SUMS ;;
+          esac

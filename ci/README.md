@@ -40,3 +40,19 @@ bash ci/smoke-test.sh "$PWD/../ws-build" "$PWD/../smoke"
 `WS_LAYOUT` is `standard` (default), `al` (alternate layout) or
 `widescreen`. The install tree (`../ws-install`) is self-contained:
 run `bin/ws.exe` from it.
+
+## Releases
+
+Builds never publish anything by themselves. Each branch has one
+standing **draft** release, tagged `next-<branch>` (e.g. `next-main`),
+which every successful push build of that branch updates in place: the
+three zips, a `SHA256SUMS`, the target commit and the notes are replaced.
+Drafts are visible only to people with write access to the repository.
+Pull request builds and tag pushes do not touch it.
+
+To release: download the draft's zips (Releases page, or
+`gh release download next-main -R <owner>/<repo>`) and test them. Then
+edit the draft, change its tag to the real one (e.g. `v3.2.1-woa1`), write
+the release notes and click **Publish release**, all in that one edit.
+The next build of the branch starts a new standing draft. Anything typed
+into the draft before then is replaced by the next build.
