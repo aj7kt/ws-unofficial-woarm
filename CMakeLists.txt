@@ -1168,6 +1168,18 @@ if (WIN32)
   find_package (Qt6 REQUIRED COMPONENTS AxContainer)
 endif (WIN32)
 
+# Qt links Threads::Threads, whose -pthread compile option CMake applies to
+# every language; Fortran sources of targets using Qt (jt9, map65, qmap)
+# then get it too, and flang warns about the unused option on each file.
+# Keep it to C and C++.
+if (TARGET Threads::Threads AND CMAKE_Fortran_COMPILER_ID STREQUAL "LLVMFlang")
+  get_target_property (_threads_opts Threads::Threads INTERFACE_COMPILE_OPTIONS)
+  if (_threads_opts)
+    set_property (TARGET Threads::Threads PROPERTY
+      INTERFACE_COMPILE_OPTIONS "$<$<COMPILE_LANGUAGE:C,CXX>:${_threads_opts}>")
+  endif ()
+endif ()
+
 #
 # Library building setup
 #
@@ -1697,7 +1709,12 @@ qt6_add_resources (wsjtx_RESOURCES_RCC
 
 # build a library for the QCustomPlot widget
 add_library (qcp STATIC ${qcp_CXXSRCS})
-target_include_directories (qcp PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qcustomplot-source>)
+# SYSTEM: QCustomPlot is bundled third-party code; its header uses the
+# deprecated Q_ENUMS/Q_FLAGS macros, which clang otherwise reports again in
+# every file that includes it.
+target_include_directories (qcp SYSTEM PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qcustomplot-source>)
+# ... and for its own sources, where SYSTEM does not apply
+target_compile_options (qcp PRIVATE $<$<CXX_COMPILER_ID:Clang>:-Wno-deprecated-pragma>)
 target_link_libraries (qcp Qt6::Widgets Qt6::PrintSupport)
 
 # build a library of package Qt functionality
