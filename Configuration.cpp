@@ -166,6 +166,9 @@
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
 #include <QIntValidator>
+#if defined(_M_ARM64) || defined(__aarch64__)
+#include <QCryptographicHash>
+#endif
 #include <QThread>
 #include <QTimer>
 #include <QStandardPaths>
@@ -736,6 +739,10 @@ private:
   Q_SLOT void on_cb_NCCC_Sprint_clicked (bool);
   void error_during_hamlib_download (QString const& reason);
   void after_hamlib_downloaded();
+#if defined(_M_ARM64) || defined(__aarch64__)
+  void start_arm64_hamlib_dll_download (QString const&);
+  void after_arm64_hamlib_dll_downloaded (QString const&);
+#endif
   void display_file_information();
   void check_visibility();
 
@@ -1117,7 +1124,13 @@ private:
   AudioDevice::Channel next_audio_output_channel_;
 
   FileDownload cty_download;
-  
+#if defined(_M_ARM64) || defined(__aarch64__)
+  // arm64 Hamlib DLL update: checksums first, then the DLL (own objects,
+  // so their connections cannot fire for the CTY download).
+  FileDownload hamlib_sums_download;
+  FileDownload hamlib_dll_download;
+#endif
+
   bool default_audio_input_device_selected_;
   bool default_audio_output_device_selected_;
   
@@ -3034,12 +3047,11 @@ void Configuration::impl::read_settings ()
   }
 #ifdef WIN32
 #if defined(_M_ARM64) || defined(__aarch64__)
-  // The Hamlib DLL download only offers x86/x64 builds, which an arm64
-  // ws.exe cannot load; hide it until there is an arm64 DLL source.
-  // Reverting to a backed-up DLL only swaps local files, so it stays.
+  // arm64 builds download the arm64 DLL from the hamlib-woarm-builds
+  // releases (see on_hamlib_download_button_clicked); the 32/64-bit choice
+  // of x86/x64 DLLs does not apply.
   ui_->rbHamlib64->setVisible(false);
   ui_->rbHamlib32->setVisible(false);
-  ui_->hamlib_download_button->setVisible(false);
 #endif
   QTimer::singleShot (2500, [=] {display_file_information ();});
 #else
@@ -4358,12 +4370,15 @@ void Configuration::impl::on_decoded_text_font_push_button_clicked ()
                                                   );
 }
 
+#if defined(_M_ARM64) || defined(__aarch64__)
+// Windows on Arm builds of libhamlib-4.dll (with SHA256SUMS) are published
+// as GitHub releases; "latest/download/<asset>" redirects to the newest.
+static QString const arm64_hamlib_release_base {
+  QStringLiteral ("https://github.com/aj7kt/hamlib-woarm-builds/releases/latest/download/")};
+#endif
+
 void Configuration::impl::on_hamlib_download_button_clicked (bool /*clicked*/)
 {
-#if defined(_M_ARM64) || defined(__aarch64__)
-  // see the constructor: no arm64 DLL is offered by the download source
-  return;
-#endif
 #ifdef WIN32
   extern char* hamlib_version2;
   QString hamlib = QString(QLatin1String(hamlib_version2));
@@ -4378,6 +4393,23 @@ void Configuration::impl::on_hamlib_download_button_clicked (bool /*clicked*/)
   if (f2.exists()) f2.remove();
   ui_->hamlib_download_button->setEnabled (false);
   ui_->revert_update_button->setEnabled (false);
+#if defined(_M_ARM64) || defined(__aarch64__)
+  if (hamlib_dll_basename != "libhamlib-4") {
+    error_during_hamlib_download (tr ("No Windows on Arm download is available for %1.dll").arg (hamlib_dll_basename));
+    return;
+  }
+  // checksums first; start_arm64_hamlib_dll_download() then fetches the DLL
+  QFile::remove (dataPath.absoluteFilePath (hamlib_dll_basename + "_new.sha256"));
+  hamlib_sums_download.configure (network_manager_,
+                                  arm64_hamlib_release_base + "SHA256SUMS",
+                                  dataPath.absoluteFilePath (hamlib_dll_basename + "_new.sha256"),
+                                  "Downloading latest Hamlib DLL checksums");
+  connect (&hamlib_sums_download, &FileDownload::complete, this, &Configuration::impl::start_arm64_hamlib_dll_download, Qt::UniqueConnection);
+  connect (&hamlib_sums_download, &FileDownload::download_error, this, &Configuration::impl::error_during_hamlib_download, Qt::UniqueConnection);
+  ui_->in_use->setText("Downloading ...");
+  hamlib_sums_download.start_download ();
+  return;
+#endif
   if (ui_->rbHamlib32->isChecked()) {
     cty_download.configure(network_manager_,
 //                           "https://hamlib.sourceforge.net/snapshots-4.7/dll32/libhamlib-4.dll",  // new hamlib 4.7 download location
@@ -4411,6 +4443,62 @@ void Configuration::impl::error_during_hamlib_download (QString const& reason)
   QString hamlib = QString(QLatin1String(hamlib_version2));
   ui_->in_use->setText(hamlib);
 }
+
+#if defined(_M_ARM64) || defined(__aarch64__)
+void Configuration::impl::start_arm64_hamlib_dll_download (QString const&)
+{
+  QDir dataPath = QCoreApplication::applicationDirPath();
+  hamlib_dll_download.configure (network_manager_,
+                                 arm64_hamlib_release_base + hamlib_dll_basename + ".dll",
+                                 dataPath.absoluteFilePath (hamlib_dll_basename + "_new.dll"),
+                                 "Downloading latest Hamlib DLL file");
+  connect (&hamlib_dll_download, &FileDownload::complete, this, &Configuration::impl::after_arm64_hamlib_dll_downloaded, Qt::UniqueConnection);
+  connect (&hamlib_dll_download, &FileDownload::download_error, this, &Configuration::impl::error_during_hamlib_download, Qt::UniqueConnection);
+  hamlib_dll_download.start_download ();
+}
+
+// Install the downloaded DLL only if it matches the release's SHA256SUMS.
+void Configuration::impl::after_arm64_hamlib_dll_downloaded (QString const&)
+{
+  QDir dataPath = QCoreApplication::applicationDirPath();
+  QString const dll_name {hamlib_dll_basename + ".dll"};
+  QString const new_dll {dataPath.absoluteFilePath (hamlib_dll_basename + "_new.dll")};
+  QString const sums_path {dataPath.absoluteFilePath (hamlib_dll_basename + "_new.sha256")};
+
+  QString expected;
+  QFile sums {sums_path};
+  if (sums.open (QIODevice::ReadOnly | QIODevice::Text)) {
+    // lines are "<hex digest> *<file name>" (or two spaces instead of '*')
+    QRegularExpression const line_re {R"(^([0-9a-fA-F]{64})\s+\*?(\S+)\s*$)"};
+    while (!sums.atEnd ()) {
+      auto m = line_re.match (QString::fromUtf8 (sums.readLine ()));
+      if (m.hasMatch () && m.captured (2) == dll_name) {
+        expected = m.captured (1).toLower ();
+        break;
+      }
+    }
+    sums.close ();
+  }
+  QFile::remove (sums_path);
+
+  QString actual;
+  QFile dll {new_dll};
+  if (dll.open (QIODevice::ReadOnly)) {
+    QCryptographicHash hash {QCryptographicHash::Sha256};
+    if (hash.addData (&dll)) actual = QString::fromLatin1 (hash.result ().toHex ());
+    dll.close ();
+  }
+
+  if (expected.isEmpty () || actual != expected) {
+    QFile::remove (new_dll);
+    error_during_hamlib_download (expected.isEmpty ()
+                                  ? tr ("The release has no checksum for %1; it was not installed.").arg (dll_name)
+                                  : tr ("Checksum mismatch for the downloaded %1; it was not installed.").arg (dll_name));
+    return;
+  }
+  after_hamlib_downloaded ();
+}
+#endif
 
 void Configuration::impl::after_hamlib_downloaded ()
 {
