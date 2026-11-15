@@ -204,6 +204,20 @@ if (WIN32)
     set (gp_tool ${gp_tool})
     get_filename_component (the_exe ${fixup_exe} REALPATH)
 
+    # UCRT imports go through API sets (api-ms-win-crt-*.dll etc.), names
+    # that Windows maps to system DLLs at load time; they are not files to
+    # find or bundle. Resolve them straight to the system directory so
+    # GetPrerequisites classifies them as system without searching for them
+    # (otherwise it prints a 'cannot resolve item' warning for each import
+    # of each binary: thousands per install).
+    function (gp_resolve_item_override context item exepath dirs resolved_item_var resolved_var)
+      if (item MATCHES \"^(api|ext)-ms-win-\")
+        file (TO_CMAKE_PATH \"\$ENV{SystemRoot}/System32/\${item}\" _api_set)
+        set (\${resolved_item_var} \"\${_api_set}\" PARENT_SCOPE)
+        set (\${resolved_var} 1 PARENT_SCOPE)
+      endif ()
+    endfunction ()
+
     if (\"${MSYS_DLL}\" STREQUAL \"MSYS_DLL-NOTFOUND\" OR \"${MSYS_DLL}\" STREQUAL \"\")
       set(extra_libs \"\")
       message(STATUS \"Skipping msys-2.0.dll: not found\")
