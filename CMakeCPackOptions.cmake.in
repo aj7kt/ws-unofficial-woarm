@@ -37,29 +37,35 @@ if (CPACK_GENERATOR MATCHES "NSIS")
   # desktop icon. Derived from CPACK_PACKAGE_VERSION at cpack time, so
   # "cpack -R <version>" gives a genuinely separate installer. Settings and
   # logbooks in %LocalAppData%\WS stay shared; no uninstaller touches them.
-  set (CPACK_PACKAGE_INSTALL_DIRECTORY "WS\\${CPACK_PACKAGE_VERSION}")
-  set (CPACK_PACKAGE_INSTALL_REGISTRY_KEY "WS ${CPACK_PACKAGE_VERSION}")
-  set (CPACK_NSIS_PACKAGE_NAME "WS ${CPACK_PACKAGE_VERSION}")
-  set (CPACK_PACKAGE_FILE_NAME "WS-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}")
+  # @WS_PACKAGE_DIR_SUFFIX@ / @WS_PACKAGE_LABEL@ are "-arm64" / " (ARM64)" for
+  # Windows on Arm builds (own identity, side by side with x64), else empty.
+  set (CPACK_PACKAGE_INSTALL_DIRECTORY "WS\\${CPACK_PACKAGE_VERSION}@WS_PACKAGE_DIR_SUFFIX@")
+  set (CPACK_PACKAGE_INSTALL_REGISTRY_KEY "WS ${CPACK_PACKAGE_VERSION}@WS_PACKAGE_LABEL@")
+  set (CPACK_NSIS_PACKAGE_NAME "WS ${CPACK_PACKAGE_VERSION}@WS_PACKAGE_LABEL@")
+  set (CPACK_PACKAGE_FILE_NAME "WS-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}@WS_PACKAGE_FILE_SUFFIX@")
+  # used in NSIS.template.in: the installer's own registry key (last install
+  # dir, for the Hamlib DLL backup) and the Windows on Arm check
+  set (CPACK_WS_REGISTRY_SUBKEY "WS@WS_PACKAGE_DIR_SUFFIX@")
+  set (CPACK_WS_REQUIRE_ARM64 @WS_PACKAGE_REQUIRE_ARM64@)
   # WS-MAP and EME65 have their own version numbers, so their shortcuts carry
   # none (a "WS-MAP 3.2.0" shortcut opening WS-MAP v1.0 made no sense, Uwe). In
   # the Start menu they sit in the versioned "WS <version>" folder. On the
   # desktop the WS version is added in brackets, so side-by-side installs do
   # not overwrite, or on uninstall delete, each other's icons.
   set (CPACK_PACKAGE_EXECUTABLES
-    ws "WS ${CPACK_PACKAGE_VERSION}"
+    ws "WS ${CPACK_PACKAGE_VERSION}@WS_PACKAGE_LABEL@"
     wsmap "WS-MAP"
     eme65 "EME65")
   set (CPACK_CREATE_DESKTOP_LINKS ws)
   set (CPACK_NSIS_CREATE_ICONS_EXTRA "
   \${If} $INSTALL_DESKTOP == 1
-    CreateShortCut \"$DESKTOP\\WS-MAP (WS ${CPACK_PACKAGE_VERSION}).lnk\" \"$INSTDIR\\bin\\wsmap.exe\"
-    CreateShortCut \"$DESKTOP\\EME65 (WS ${CPACK_PACKAGE_VERSION}).lnk\" \"$INSTDIR\\bin\\eme65.exe\"
+    CreateShortCut \"$DESKTOP\\WS-MAP (WS ${CPACK_PACKAGE_VERSION}@WS_PACKAGE_LABEL@).lnk\" \"$INSTDIR\\bin\\wsmap.exe\"
+    CreateShortCut \"$DESKTOP\\EME65 (WS ${CPACK_PACKAGE_VERSION}@WS_PACKAGE_LABEL@).lnk\" \"$INSTDIR\\bin\\eme65.exe\"
   \${EndIf}")
   set (CPACK_NSIS_DELETE_ICONS_EXTRA "
   \${If} $INSTALL_DESKTOP == 1
-    Delete \"$DESKTOP\\WS-MAP (WS ${CPACK_PACKAGE_VERSION}).lnk\"
-    Delete \"$DESKTOP\\EME65 (WS ${CPACK_PACKAGE_VERSION}).lnk\"
+    Delete \"$DESKTOP\\WS-MAP (WS ${CPACK_PACKAGE_VERSION}@WS_PACKAGE_LABEL@).lnk\"
+    Delete \"$DESKTOP\\EME65 (WS ${CPACK_PACKAGE_VERSION}@WS_PACKAGE_LABEL@).lnk\"
   \${EndIf}")
   # Reinstalling a version that is already registered - including a
   # pre-release install of it in C:\WS - first offers to uninstall that one.
@@ -101,7 +107,7 @@ if (CPACK_GENERATOR MATCHES "NSIS")
   set (CPACK_NSIS_DISPLAY_NAME "${CPACK_PACKAGE_DESCRIPTION_SUMMARY}")
   # "WS 3.2.0: Weak Signal Digital Modes Suite" in the list of installed apps,
   # so side-by-side versions can be told apart at a glance
-  string (REPLACE "WS:" "WS ${CPACK_PACKAGE_VERSION}:" CPACK_NSIS_DISPLAY_NAME "${CPACK_NSIS_DISPLAY_NAME}")
+  string (REPLACE "WS:" "WS ${CPACK_PACKAGE_VERSION}@WS_PACKAGE_LABEL@:" CPACK_NSIS_DISPLAY_NAME "${CPACK_NSIS_DISPLAY_NAME}")
   if (WS_GENERATE_DOCS)
   set (CPACK_NSIS_HELP_LINK "@PROJECT_MANUAL_DIRECTORY_URL@@PROJECT_MANUAL@_en.html")
   endif ()

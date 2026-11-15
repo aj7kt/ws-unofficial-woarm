@@ -40,6 +40,7 @@
 ;Include Logic Lib and add a DirExists command
 
   !include "LogicLib.nsh"
+  !include "x64.nsh"     ; ${IsNativeARM64}, for the Windows on Arm check in .onInit
 ;FileExists is already part of LogicLib, but returns true for directories as well as files
   !macro _FileExists2 _a _b _t _f
 	!insertmacro _LOGICLIB_TEMP
@@ -689,7 +690,7 @@ Function HamlibBackupOne
   Exch
   Exch $R2
   Push $R0
-  ReadRegStr $R0 SHCTX "Software\@CPACK_PACKAGE_VENDOR@\WS" "LastInstallDir"
+  ReadRegStr $R0 SHCTX "Software\@CPACK_PACKAGE_VENDOR@\@CPACK_WS_REGISTRY_SUBKEY@" "LastInstallDir"
   ${If} ${FileExists} "$INSTDIR\bin\$R1"
     Delete "$INSTDIR\bin\$R2"
     Rename "$INSTDIR\bin\$R1" "$INSTDIR\bin\$R2"
@@ -720,7 +721,7 @@ FunctionEnd
 ;Runs after the files are installed, so the next update knows where the
 ;previously used Hamlib DLL is
 Function HamlibRememberInstallDir
-  WriteRegStr SHCTX "Software\@CPACK_PACKAGE_VENDOR@\WS" "LastInstallDir" "$INSTDIR"
+  WriteRegStr SHCTX "Software\@CPACK_PACKAGE_VENDOR@\@CPACK_WS_REGISTRY_SUBKEY@" "LastInstallDir" "$INSTDIR"
 FunctionEnd
 
 ;Stack: <dll name> <backup name>
@@ -895,7 +896,7 @@ FunctionEnd
 ;"Don't ask again" is remembered per user and only ever means No: the
 ;installer never uninstalls without asking. Run the installer with /ASK to
 ;get the question back.
-!define UNINSTALL_QUESTION_KEY "Software\@CPACK_PACKAGE_VENDOR@\WS"
+!define UNINSTALL_QUESTION_KEY "Software\@CPACK_PACKAGE_VENDOR@\@CPACK_WS_REGISTRY_SUBKEY@"
 !define UNINSTALL_QUESTION_VALUE "DontAskUninstallFirst"
 
 Function UninstallQuestionPage
@@ -1114,6 +1115,14 @@ SectionEnd
 ; "Program Files" for AllUsers, "My Documents" for JustMe...
 
 Function .onInit
+!if "@CPACK_WS_REQUIRE_ARM64@" == "ON"
+  ; Windows on Arm build: refuse to install on x86/x64 Windows, where none of
+  ; its ARM64 binaries could run. /SD so a silent install does not wait.
+  ${IfNot} ${IsNativeARM64}
+    MessageBox MB_OK|MB_ICONSTOP "This installer is for Windows on Arm (ARM64) computers only.$\r$\nPlease use the official WS installer on this computer." /SD IDOK
+    Abort
+  ${EndIf}
+!endif
   Push $0
   Push $1
   Push $2

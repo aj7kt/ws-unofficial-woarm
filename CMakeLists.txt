@@ -2228,6 +2228,25 @@ set (CPACK_RPM_PACKAGE_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
 set (CPACK_RPM_PACKAGE_REQUIRES "qt6-qtbase >= 5.9, qt6-qtserialport >= 5.9, qt6-qtmultimedia >= 5.9, qt6-qtwebsockets >= 5.9, qt6-qtmultimedia >= 5.9, qt6-qtsvg >= 5.9, libusbx >= 1.0.22, libgfortran >= 7, libgomp >= 7, fftw-libs-single >= 3.3, boost-log >= 1.74")
 set (CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION /usr/share/pixmaps /usr/share/applications /usr/share/man /usr/share/man1)
 
+# Windows on Arm builds get their own package identity, so they install side
+# by side with an official x64 build of the same version instead of
+# replacing it: install folder C:\WS\<version>-arm64, uninstall key, Start
+# menu folder and shortcuts "WS <version> (ARM64)", the installer's own
+# registry key, and an installer that refuses to run on non-ARM64 Windows.
+# The installer file name also carries the main window layout. x64 builds
+# are unchanged.
+set (WS_PACKAGE_DIR_SUFFIX "")
+set (WS_PACKAGE_LABEL "")
+set (WS_PACKAGE_FILE_SUFFIX "")
+set (WS_PACKAGE_REQUIRE_ARM64 OFF)
+if (WIN32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^([Aa][Rr][Mm]64|aarch64)$")
+  set (CPACK_SYSTEM_NAME "win-arm64")
+  set (WS_PACKAGE_DIR_SUFFIX "-arm64")
+  set (WS_PACKAGE_LABEL " (ARM64)")
+  set (WS_PACKAGE_FILE_SUFFIX "-${WS_LAYOUT}")
+  set (WS_PACKAGE_REQUIRE_ARM64 ON)
+endif ()
+
 configure_file ("${PROJECT_SOURCE_DIR}/CMakeCPackOptions.cmake.in"
   "${PROJECT_BINARY_DIR}/CMakeCPackOptions.cmake" @ONLY)
 set (CPACK_PROJECT_CONFIG_FILE "${PROJECT_BINARY_DIR}/CMakeCPackOptions.cmake")
